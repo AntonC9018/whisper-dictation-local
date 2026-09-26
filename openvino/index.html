@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Whisper Dictation</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2939;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --paper: #ffffff;
+      --wash: #f5f7fa;
+      --blue: #155eef;
+      --blue-dark: #004eeb;
+      --green: #067647;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--wash); color: var(--ink); }
+    header { height: 68px; display: flex; align-items: center; border-bottom: 1px solid var(--line); background: var(--paper); }
+    .topbar, main { width: min(100% - 40px, 880px); margin: 0 auto; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; }
+    .brand { display: flex; gap: 11px; align-items: center; font-weight: 650; letter-spacing: -.02em; }
+    .brand-mark { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; background: #eaf1ff; color: var(--blue); }
+    .brand-mark svg { width: 17px; height: 17px; }
+    .local-pill { display: inline-flex; align-items: center; gap: 8px; color: #344054; font-size: 13px; }
+    .local-dot { width: 8px; height: 8px; background: #12b76a; border-radius: 50%; }
+    main { padding: 52px 0 64px; }
+    .intro { margin-bottom: 28px; }
+    .eyebrow { margin: 0 0 11px; color: var(--blue); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 38px); line-height: 1.15; letter-spacing: -.04em; }
+    .lede { max-width: 610px; margin: 14px 0 0; color: var(--muted); font-size: 16px; line-height: 1.6; }
+    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: 0 2px 8px rgb(16 24 40 / 4%); }
+    .controls { padding: 24px; }
+    .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 17px; }
+    h2 { margin: 0; font-size: 15px; font-weight: 650; }
+    .model-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+    .model-choice { display: inline-flex; align-items: center; gap: 7px; color: #667085; font-size: 12px; font-weight: 600; }
+    .model-choice select { max-width: 145px; padding: 6px 8px; border: 1px solid #d0d5dd; border-radius: 8px; background: white; color: #344054; font: inherit; font-size: 12px; cursor: pointer; }
+    .language-choice { display: inline-flex; align-items: center; gap: 7px; color: #667085; font-size: 12px; font-weight: 600; }
+    .language-choice select { max-width: 180px; padding: 6px 8px; border: 1px solid #d0d5dd; border-radius: 8px; background: white; color: #344054; font: inherit; font-size: 12px; cursor: pointer; }
+    .model-choice select:focus-visible { outline: 3px solid #b2ccff; outline-offset: 2px; }
+    .language-choice select:focus-visible { outline: 3px solid #b2ccff; outline-offset: 2px; }
+    .model-tag { padding: 5px 9px; border: 1px solid #d0d5dd; border-radius: 999px; color: #475467; font-size: 11px; font-weight: 650; white-space: nowrap; }
+    .action-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    button, .upload-label { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 15px; border: 1px solid #d0d5dd; border-radius: 10px; background: white; color: #344054; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, transform .15s; }
+    button:hover, .upload-label:hover { background: #f9fafb; border-color: #98a2b3; }
+    button:active, .upload-label:active { transform: translateY(1px); }
+    button:focus-visible, .upload-label:focus-within { outline: 3px solid #b2ccff; outline-offset: 2px; }
+    button.primary { border-color: var(--blue); background: var(--blue); color: white; }
+    button.primary:hover { background: var(--blue-dark); }
+    button.primary.recording { border-color: #d92d20; background: #d92d20; }
+    button:disabled { opacity: .58; cursor: wait; }
+    .upload-label input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+    .action-icon { width: 17px; height: 17px; flex: none; }
+    .file-name { min-height: 20px; margin: 12px 1px 0; color: var(--muted); font-size: 13px; }
+    .status { min-height: 21px; margin: 14px 1px 0; color: var(--muted); font-size: 13px; }
+    .status.error { color: #b42318; }
+    .status.good { color: var(--green); }
+    .result { margin-top: 16px; overflow: hidden; }
+    .result-head { min-height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); }
+    .result-title { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 650; }
+    .result-icon { width: 18px; height: 18px; color: var(--blue); }
+    .copy-button { min-height: 34px; padding: 0 10px; border-color: transparent; color: var(--muted); font-size: 12px; }
+    .copy-button:disabled { cursor: default; opacity: .45; }
+    .result-body { min-height: 150px; padding: 22px 20px; color: #344054; font-size: 16px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .placeholder { color: #98a2b3; }
+    .footnote { display: flex; gap: 10px; align-items: flex-start; margin: 18px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .footnote svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: #667085; }
+    .settings { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 20px; color: var(--muted); font-size: 12px; }
+    .settings span::before { content: ""; display: inline-block; width: 4px; height: 4px; margin: 0 8px 2px 0; border-radius: 50%; background: #98a2b3; }
+    @media (max-width: 620px) {
+      .topbar, main { width: min(100% - 28px, 880px); }
+      main { padding-top: 36px; }
+      .controls { padding: 18px; }
+      .action-row { grid-template-columns: 1fr; }
+      .action-row button, .action-row .upload-label { min-height: 46px; }
+      .section-title { align-items: flex-start; gap: 10px; }
+      .result-head { padding: 0 16px; }
+      .result-body { padding: 18px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg>
+        </span>
+        Whisper Dictation
+      </div>
+      <div class="local-pill"><span class="local-dot" aria-hidden="true"></span>Running on this computer</div>
+    </div>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">Private local transcription</p>
+      <h1 id="page-title">Turn speech into text.</h1>
+      <p class="lede">Record a phrase, choose an audio file, or run the sample. Use Auto for English, Russian, or mixed speech.</p>
+    </section>
+
+    <section class="card controls" aria-labelledby="input-title">
+      <div class="section-title">
+        <h2 id="input-title">Choose an audio source</h2>
+        <div class="model-controls">
+          <label class="model-choice" for="modelSelect">Model
+            <select id="modelSelect">
+              <option value="base" selected>base · 74M</option>
+            </select>
+          </label>
+          <label class="language-choice" for="languageSelect">Language
+            <select id="languageSelect">
+              <option value="auto" selected>Auto · English + Russian</option>
+              <option value="en">English</option>
+              <option value="ru">Russian</option>
+            </select>
+          </label>
+          <span class="model-tag">OpenVINO GPU · CPU decoder</span>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="primary" id="recordButton" type="button">
+          <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg>
+          <span>Record a phrase</span>
+        </button>
+        <label class="upload-label" for="audioFile">
+          <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg>
+          <span>Choose audio file</span>
+          <input id="audioFile" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*">
+        </label>
+        <button id="sampleButton" type="button">
+          <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M8 6v12m8-12v12M4 9v6m16-6v6"/></svg>
+          <span>Transcribe sample</span>
+        </button>
+      </div>
+      <p class="file-name" id="fileName" aria-live="polite">WAV, MP3, M4A, OGG, or WebM · Up to 25 MB</p>
+      <p class="status" id="status" role="status" aria-live="polite">Ready. Choose an audio source to begin.</p>
+    </section>
+
+    <section class="card result" aria-labelledby="result-title">
+      <div class="result-head">
+        <div class="result-title" id="result-title">
+          <svg class="result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          Transcript
+        </div>
+        <button class="copy-button" id="copyButton" type="button" disabled>Copy text</button>
+      </div>
+      <div class="result-body placeholder" id="transcript" aria-live="polite">Your transcription will appear here.</div>
+    </section>
+
+    <p class="footnote">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      Audio stays on this computer. The server accepts local connections only and deletes uploads after transcription. Auto can transcribe English and Russian in the same recording, though brief language changes may still be missed.
+    </p>
+    <div class="settings" aria-label="Transcription settings">
+      <span id="selectedModelSetting">base model</span><span id="selectedLanguageSetting">Auto language detection</span><span>Beam size 5</span><span>OpenVINO GPU encoder</span>
+    </div>
+  </main>
+
+  <script>
+    const recordButton = document.getElementById("recordButton");
+    const sampleButton = document.getElementById("sampleButton");
+    const audioFile = document.getElementById("audioFile");
+    const fileName = document.getElementById("fileName");
+    const statusText = document.getElementById("status");
+    const transcript = document.getElementById("transcript");
+    const copyButton = document.getElementById("copyButton");
+    const modelSelect = document.getElementById("modelSelect");
+    const languageSelect = document.getElementById("languageSelect");
+    const selectedModelSetting = document.getElementById("selectedModelSetting");
+    const selectedLanguageSetting = document.getElementById("selectedLanguageSetting");
+    let recorder = null;
+    let recordingStream = null;
+    let recordingChunks = [];
+    let busy = false;
+
+    function setStatus(message, tone = "") {
+      statusText.textContent = message;
+      statusText.className = `status ${tone}`.trim();
+    }
+
+    function setBusy(value) {
+      busy = value;
+      sampleButton.disabled = value;
+      audioFile.disabled = value;
+      recordButton.disabled = value && !recorder;
+      modelSelect.disabled = value;
+      languageSelect.disabled = value;
+    }
+
+    async function submitAudio(file) {
+      if (busy) return;
+      if (!file || file.size === 0) {
+        setStatus("The recording is empty. Try again.", "error");
+        return;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        setStatus("Audio files must be 25 MB or smaller.", "error");
+        return;
+      }
+      setBusy(true);
+      setStatus("Transcribing on this computer. Longer recordings can take a little while.");
+      try {
+        const form = new FormData();
+        form.append("model", modelSelect.value);
+        form.append("language", languageSelect.value);
+        form.append("audio", file, file.name || "recording.webm");
+        const response = await fetch("/transcribe", { method: "POST", body: form });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Transcription failed.");
+        showTranscript(result);
+      } catch (error) {
+        setStatus(error.message || "Could not reach the local server.", "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function showTranscript(result) {
+      transcript.textContent = result.text || "No speech was detected in this recording.";
+      transcript.classList.toggle("placeholder", !result.text);
+      copyButton.disabled = !result.text;
+      const duration = Number(result.duration);
+      const durationText = Number.isFinite(duration) ? ` · ${duration.toFixed(2)} seconds of audio` : "";
+      const languageName = { en: "English", ru: "Russian" }[result.language];
+      const detectedLanguage = result.language_mode === "auto" && languageName ? ` · primary language: ${languageName}` : "";
+      setStatus(`Transcription complete with ${result.model || modelSelect.value}${detectedLanguage}${durationText}.`, "good");
+    }
+
+    sampleButton.addEventListener("click", async () => {
+      if (busy) return;
+      setBusy(true);
+      setStatus("Transcribing the sample phrase on this computer.");
+      try {
+        const params = new URLSearchParams({ model: modelSelect.value, language: languageSelect.value });
+        const response = await fetch(`/sample?${params}`, { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Sample transcription failed.");
+        showTranscript(result);
+      } catch (error) {
+        setStatus(error.message || "Could not reach the local server.", "error");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    audioFile.addEventListener("change", () => {
+      const file = audioFile.files && audioFile.files[0];
+      if (!file) return;
+      fileName.textContent = file.name;
+      submitAudio(file);
+    });
+
+    recordButton.addEventListener("click", async () => {
+      if (busy) return;
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        setStatus("This browser cannot record audio here. Choose a recording file instead.", "error");
+        return;
+      }
+      try {
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const preferredTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+        const mimeType = preferredTypes.find(type => MediaRecorder.isTypeSupported(type));
+        recorder = mimeType ? new MediaRecorder(recordingStream, { mimeType }) : new MediaRecorder(recordingStream);
+        recordingChunks = [];
+        recorder.addEventListener("dataavailable", event => {
+          if (event.data.size) recordingChunks.push(event.data);
+        });
+        recorder.addEventListener("stop", async () => {
+          const type = recorder.mimeType || "audio/webm";
+          const extension = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+          const recording = new File(recordingChunks, `recording.${extension}`, { type });
+          recordingStream.getTracks().forEach(track => track.stop());
+          recordingStream = null;
+          recorder = null;
+          recordButton.classList.remove("recording");
+          recordButton.querySelector("span").textContent = "Record a phrase";
+          fileName.textContent = "Recording ready";
+          await submitAudio(recording);
+        });
+        recorder.start();
+        recordButton.classList.add("recording");
+        recordButton.querySelector("span").textContent = "Stop recording";
+        fileName.textContent = "Recording… click Stop recording when you are done.";
+        setStatus("Recording. Allow microphone access if your browser asks.");
+      } catch (error) {
+        if (recordingStream) recordingStream.getTracks().forEach(track => track.stop());
+        recordingStream = null;
+        setStatus(error.name === "NotAllowedError" ? "Microphone access was denied. Choose a recording file instead." : "Could not start the microphone. Choose a recording file instead.", "error");
+      }
+    });
+
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(transcript.textContent);
+        setStatus("Transcript copied to the clipboard.", "good");
+      } catch {
+        setStatus("Clipboard access is unavailable in this browser.", "error");
+      }
+    });
+
+    modelSelect.addEventListener("change", () => {
+      selectedModelSetting.textContent = `${modelSelect.value} model`;
+      setStatus(`Selected ${modelSelect.value}. Its model files download the first time you use it.`);
+    });
+
+    languageSelect.addEventListener("change", () => {
+      const labels = { auto: "Auto language detection", en: "English selected", ru: "Russian selected" };
+      selectedLanguageSetting.textContent = labels[languageSelect.value];
+      const message = languageSelect.value === "auto"
+        ? "Auto language detection is on for English and Russian."
+        : `${languageSelect.value === "en" ? "English" : "Russian"} is selected.`;
+      setStatus(message);
+    });
+  </script>
+</body>
+</html>
